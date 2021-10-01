@@ -1,3 +1,5 @@
 <resources>
-    <string name="app_name">AndroidImageCompressor</string>
+    <string name="app_name">AndroidImageCompressorFix</string>
+    <string name="pick_problem_image">Pick problem image</string>
+    <string name="broken_image">Broken image</string>
 </resources>
