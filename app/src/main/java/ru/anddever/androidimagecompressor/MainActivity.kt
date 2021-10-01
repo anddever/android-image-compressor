@@ -6,7 +6,9 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Environment
 import android.provider.MediaStore
+import android.util.Log
 import android.view.View
+import android.widget.Toast
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.databinding.DataBindingUtil
@@ -21,7 +23,7 @@ import java.util.*
 
 class MainActivity : AppCompatActivity() {
 
-    var binding: ActivityMainBinding? = null
+    private var binding: ActivityMainBinding? = null
     private var imageFile: File? = null
     private val getImageUri =
         this.registerForActivityResult(ActivityResultContracts.GetContent()) { uri: Uri? ->
@@ -38,6 +40,7 @@ class MainActivity : AppCompatActivity() {
                         storageDir
                     ).apply {
                         val currentPhotoPath: String = absolutePath
+                        val byteArrayOutputStream = ByteArrayOutputStream()
                         val byteArray = ByteArray(imageFile!!.length().toInt())
                         val bis = BufferedInputStream(FileInputStream(imageFile))
                         val dis = DataInputStream(bis)
@@ -46,6 +49,50 @@ class MainActivity : AppCompatActivity() {
                         outputStream.write(byteArray)
                         if (imageFile != null) {
                             Picasso.get().load(imageFile!!).into(binding!!.imageView)
+                        }
+                        try {
+                            var startIndex = 0
+                            var endIndex = 0
+                            var ffe2 = false
+                            for (i in byteArray.indices) {
+                                val b = byteArray[i]
+                                if (b.toInt() == -1 && byteArray[i + 1].toInt() == -30) {
+                                    ffe2 = true
+                                    startIndex = i
+                                }
+                                if (b.toInt() == -1 && byteArray[i + 1].toInt() == -37) {
+                                    endIndex = i - 1
+                                    break
+                                }
+                            }
+                            if (ffe2) {
+                                val markerLength = endIndex - startIndex
+                                if (markerLength == 553 && byteArray[startIndex].toInt() == -1 && byteArray[endIndex].toInt() == 54) {
+                                    val imageWithoutFFE2Marker =
+                                        ByteArray(byteArray.size - markerLength)
+                                    var newIndex = 0
+                                    for (i in byteArray.indices) {
+                                        if (i < startIndex || i > endIndex) {
+                                            imageWithoutFFE2Marker[newIndex] = byteArray[i]
+                                            ++newIndex
+                                        }
+                                    }
+                                    byteArrayOutputStream.write(imageWithoutFFE2Marker)
+                                    FileOutputStream(imageFile).use { outputStream ->
+                                        byteArrayOutputStream.writeTo(
+                                            outputStream
+                                        )
+                                        Toast.makeText(this@MainActivity, "PROBLEM JPEG MARKER IS CUT OUT!", Toast.LENGTH_LONG).show()
+                                    }
+                                }
+
+                            } else {
+                                Toast.makeText(this@MainActivity, "PROBLEM JPEG MARKER NOT FOUND!", Toast.LENGTH_LONG).show()
+                            }
+                        } catch (e: ArrayIndexOutOfBoundsException) {
+                            e.printStackTrace()
+                        } catch (e: Exception) {
+                            e.printStackTrace()
                         }
 
                         if (Build.VERSION.SDK_INT >= 29) {
